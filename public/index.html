@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf8" />
+	<script src='/letempsdalice/dist/sql-wasm.js'></script>
+	<script src='/letempsdalice/dist/qrcodegen.js'></script>
+	<script src="https://code.highcharts.com/highcharts.js"></script>
+	<link rel="shortcut icon" href="/letempsdalice/favicon.ico" type="image/x-icon">
+</head>
+<body>
+<div id="qrCodeOverlay">
+	Scan the Qr code on your phone to upload the data directly from it
+	<div id="qrImage"></div>
+	<span><button onclick="location.reload()">Update</button> the page when you are done.</span>
+</div>
+<div id="uploadOverlay">
+	<button class="uploadButton" onclick="uploadDBFile()"><img src="./upload.svg" width="200" height="200"></button>
+</div>
+<div id="toolbar" class="toolbar">
+</div>
+<div id="topbar" class="topbar" >
+	<button onclick="uploadDBFile()"><img src="./upload.svg" width="25" height="25"></button>
+	<button onclick="document.getElementById('qrCodeOverlay').style.display='flex';"><img src="./QR_Code.svg" width="25" height="25"></button>
+</div>
+
+<ul id="groupContainer" style="display: none;">
+</ul>
+<div class="dateDiv">
+	From <input id="startDateInput" onchange="rangeChanged()" type="date"> to <input id="endDateInput" onchange="rangeChanged()" type="date"> inclusive
+</div>
+<div id="container"></div>
+<style>
+
+body {
+	margin: 0;
+	font-family: Arial, sans-serif;
+}
+
+.toolbar {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 60px;
+	height: 100vh;
+	background-color: #333;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding-top: 20px;
+	z-index: 1;
+	overflow: scroll;
+}
+.toolbar button {
+	width: 40px;
+	height: 40px;
+	margin-bottom: 10px;
+	border: none;
+	border-radius: 5px;
+	cursor: pointer;
+	background-color: #444;
+	color: white;
+	transition: background-color 0.3s ease;
+}
+.toolbar button:hover {
+	background-color: #555;
+}
+
+.topbar {
+	position: absolute; 
+	x: 0; 
+	y : 0;
+	padding-left: 70px;
+}
+
+.topbar button {
+	width: 40px;
+	height: 40px;
+	margin-right: 10px;
+	border: none;
+	border-radius: 0 0 10px 10px;
+	cursor: pointer;
+	background-color: #444;
+	color: white;
+}
+
+.topbar button:hover {
+	background-color: #555;
+}
+
+.dateDiv {
+	padding-top: 1em;
+	text-align: center;
+}
+
+#container {
+	height: 90vh;
+}
+
+#qrCodeOverlay {
+	display: none; /* set to 'flex' to display */
+	position: absolute; 
+	x: 0; 
+	y: 0; 
+	width: 100vw; 
+	height: 100vh; 
+	background-color: rgba(255, 255, 255, 0.9);
+	z-index: 10;
+	justify-content: center;
+	align-items: center;
+	flex-direction: column;
+}
+
+#qrCodeOverlay svg {
+	background-color: white;
+}
+
+#qrCodeOverlay button {
+	border: none;
+	border-radius: 5px;
+	padding: 3px 8px;
+	cursor: pointer;
+	background-color: #444;
+	color: white;
+	font-weight: bold;
+}
+
+#qrCodeOverlay button:hover {
+	background-color: #888;
+}
+
+#uploadOverlay {
+	display: none; /* set to 'flex' to display */
+	position: absolute; 
+	x: 0; 
+	y: 0; 
+	width: 100vw; 
+	height: 100vh; 
+	background-color: rgba(255, 255, 255, 0.9);
+	z-index: 10;
+	justify-content: center;
+	align-items: center;
+	flex-direction: column;
+}
+
+#uploadOverlay button {
+	border: none;
+	border-radius: 30px;
+	padding: 20px;
+	margin: 5px;
+	cursor: pointer;
+	background-color: #444;
+	color: white;
+	font-weight: bold;
+}
+
+#uploadOverlay button:hover {
+	background-color: #888;
+}
+
+</style>
+</body>
+<script>
+
+var db;
+
+function parseResult(sqlResult) {
+	if (sqlResult.length == 0) 
+	{
+		return [];
+	}
+	sqlResult = sqlResult[0];
+	const res = [];
+	for (var sqlRow of sqlResult.values) {
+		const row = {};
+		for (var i in sqlResult.columns) {
+			Object.defineProperty(row, sqlResult.columns[i], { value: sqlRow[i] });
+		}
+		res.push(row);
+	}
+	return res;
+}
+
+
+function listTrackers() {
+	return parseResult(db.exec("SELECT * FROM features_table;"));
+}
+
+function getTracker(trackerId) {
+	return parseResult(db.exec(`SELECT * FROM features_table WHERE id = ${trackerId};`))[0];
+}
+
+function listTrackersFor(group) {
+	return parseResult(db.exec(`SELECT * FROM features_table WHERE group_id = ${group};`));
+}
+
+function listGroups(parentGroup) {
+	return parseResult(db.exec(`SELECT * FROM groups_table WHERE parent_group_id = ${parentGroup};`));
+}
+
+function getValuesFor(trackerId) {
+	return parseResult(db.exec(`SELECT * FROM data_points_table WHERE feature_id = ${trackerId};`));
+}
+
+function getTotalFor(trackerId, start = null, end = null) {
+	const startFilter = start != null ? `AND epoch_milli > ${start.valueOf()}` : ""; 
+	const endFilter = end != null ? `AND epoch_milli < ${end.valueOf()}` : ""; 
+	return db.exec(`SELECT SUM(value) FROM data_points_table WHERE feature_id = ${trackerId} ${startFilter} ${endFilter}`)[0].values[0] / 3600.0;
+}
+
+function getDateRange() {
+	const queryRes = parseResult(db.exec(`SELECT MIN(epoch_milli) AS Start, MAX(epoch_milli) AS End FROM data_points_table;`))[0];
+	const startDate = new Date(queryRes.Start);
+	const endDate = new Date(queryRes.End);
+	//TODO: there might be some timezone offset to take into account.
+	startDate.setHours(0, 0, 0, 0); 
+	startDate.setDate(1);
+	endDate.setHours(0, 0, 0, 0); 
+	endDate.setDate(1); 
+	endDate.setMonth(endDate.getMonth() + 1);
+	return {
+		start: startDate, 
+		end: endDate,
+	};
+}
+
+function listMonths() {
+	const range = getDateRange(); 
+	const currentDate = new Date(range.start);
+	const result = [];
+	result.push(new Date(currentDate));
+	currentDate.setMonth(currentDate.getMonth() + 1);
+	while (currentDate < range.end) {
+		result.push(new Date(currentDate)); 
+		currentDate.setMonth(currentDate.getMonth() + 1);
+	}
+	return result;
+}
+
+function hslToHex(h, s, l) {
+  l /= 100;
+  const a = s * Math.min(l, 1 - l) / 100;
+  const f = n => {
+    const k = (n + h / 30) % 12;
+    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * color).toString(16).padStart(2, '0');   // convert to Hex and prefix "0" if needed
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+const builtinColors = [
+	"#a50026",
+	"#d73027",
+	"#f46d43",
+	"#fdae61",
+	"#fee090",
+	"#e0f3f8",
+	"#abd9e9",
+	"#74add1",
+	"#4575b4",
+	"#313695",
+	"#54D931",
+	"#1B8200",
+];
+
+function plotPieSeries(series, total) {
+	Highcharts.chart('container', {
+		chart: {
+			type: 'pie',
+			custom: {
+			},
+			events: {
+				render() {
+					const chart = this;
+					const series = chart.series[0];
+					let customLabel = chart.options.chart.custom.label;
+
+					if (!customLabel) {
+						customLabel = chart.options.chart.custom.label =
+							chart.renderer.label(
+								'Total:<br/>' +
+								`<strong>${total.toFixed(1)}h</strong>`
+							)
+								.css({
+									color: '#000',
+									textAnchor: 'middle'
+								})
+								.add();
+					}
+
+					// Set font size based on chart diameter
+					customLabel.css({
+						fontSize: `${series.center[2] / 12}px`
+					});
+					
+					const x = series.center[0] + chart.plotLeft;
+					const y = series.center[1] + chart.plotTop - customLabel.attr('height') / 2;
+
+					customLabel.attr({ x, y });
+				}
+			}
+		},
+		title: { text: null },
+		tooltip: { pointFormat: '<b>{point.y:.1f}h ({point.percentage:.0f}%)</b>' },
+		legend: { enabled: false },
+		plotOptions: {
+			pie: {
+				shadow: false,
+				center: ['50%', '50%']
+			}
+		},
+		series: series,
+	});
+}
+
+function plotPieTrackers(trackerIds) {
+	const data = [];
+	var total = 0;
+	for (trackerId of trackerIds) {
+		const tracker = getTracker(trackerId);
+		const value = getTotalFor(trackerId);
+		total += value;
+		data.push({
+			name: tracker.name, 
+			y: value,
+		});
+	}
+	
+	const series = [{
+			name: 'Time',
+			colorByPoint: true,
+			innerSize: '75%',
+			data: data,
+		}];
+		
+	plotPieSeries(series, total);
+}
+
+
+function plotPieAll(start = null, end = null) {
+	setInputRange(start, end);
+	const groupsSerie = {
+		name: 'Group', 
+		colorByPoint: true, 
+		innerSize: '50%',
+		size: '60%', 
+		data: [],
+        dataLabels: {
+            color: '#000',
+            distance: '-25%', 
+            size: '5pt',
+        }
+	}; 
+	const trackersSerie = {
+		name: 'Trackers', 
+		colorByPoint: true, 
+		innerSize: '75%', 
+		data: [],
+		dataLabels: {
+			distance: '25%',
+		}
+	};
+	var total = 0;
+	var groupIndex = 0; 
+	const allGroups = listGroups(0);
+	allGroups.sort(function (groupA, groupB) {
+		return groupA.display_index - groupB.display_index;
+	});
+	for (var group of allGroups) {
+		var groupTotal = 0;
+		const hue = ((groupIndex * 360.0) / allGroups.length).toFixed(0);
+		const groupColor = builtinColors[group.color_index];
+		//hslToHex(hue, 70, 70);
+		const trackerList = listTrackersFor(group.id); 
+		var trackerIndex = 0;
+		for (var tracker of trackerList) {
+			const value = getTotalFor(tracker.id, start, end);
+			groupTotal += value;
+			trackersSerie.data.push({
+				name: tracker.name, 
+				y: value,
+				color: Highcharts.color(groupColor).brighten(-0.1 + (trackerIndex * 0.3 / trackerList.length)).get(),
+			});
+			trackerIndex += 1;
+		}
+		total += groupTotal; 
+		groupsSerie.data.push({
+			name: group.name, 
+			y: groupTotal,
+			color: groupColor,
+		});
+		groupIndex += 1; 
+	}
+	plotPieSeries([groupsSerie, trackersSerie], total);
+}
+
+//Sets the values for the two input widgets
+function setInputRange(start, end) {
+	const startValue = new Date(((start == null) ? dateRange.start : start)); 
+	const endValue = new Date((end == null) ? dateRange.end : end);
+	// Need to subtract the timezone as offset because for some reason, the dates are displayed 
+	// as UTC time (so midnight at UTC + 1, is actually 23h the day before...).
+	startValue.setMinutes(startValue.getMinutes() - startValue.getTimezoneOffset());
+	endValue.setMinutes(endValue.getMinutes() - endValue.getTimezoneOffset());
+	//Add one second to startValue and subtract one second from endValue to make sure that they show the correct
+	//day.
+	startValue.setSeconds(startValue.getSeconds() + 1); 
+	endValue.setSeconds(endValue.getSeconds() - 1); 
+	startDateInput.valueAsDate = startValue;
+	endDateInput.valueAsDate = endValue; 
+}
+
+
+function rangeChanged() {
+	const startDate = new Date(startDateInput.valueAsDate);
+	const endDate = new Date(endDateInput.valueAsDate);
+	startDate.setHours(0,0,0,0);
+	endDate.setHours(0,0,0,0); 
+	endDate.setDate(endDate.getDate() + 1);
+	plotPieAll(startDate, endDate);
+}
+
+function uploadDBFile() {
+	// Create an input element for selecting files
+	const input = document.createElement("input");
+	input.type = "file";
+	input.accept = ".db";
+
+	// Listen for change event (when a file is selected)
+	input.addEventListener("change", () => {
+		if (!input.files || !input.files[0]) return;
+
+		const file = input.files[0];
+		const formData = new FormData();
+
+		// Append the selected file to FormData
+		formData.append("dbFile", file);
+
+		// Send the file to the server using XMLHttpRequest
+		const xhr = new XMLHttpRequest();
+		xhr.open("POST", "/letempsdalice/upload", true);
+		xhr.onload = () => {
+			if (xhr.status === 200) {
+				console.log("File uploaded successfully.");
+				if (window.location.hash == "#upload") {
+					window.location.hash = ""; 
+				}
+				window.location.reload();
+			} else {
+				console.error("Error uploading file:", xhr.responseText);
+				alert("Failed to upload file");
+			}
+		};
+		xhr.send(formData);
+	});
+
+	// Trigger click event on the input element to open the file selector
+	input.click();
+}
+
+
+function buildToolBar() {
+	const toolbar = document.getElementById("toolbar");
+	const allButton = document.createElement("button");
+	allButton.textContent = "All";
+	allButton.onclick = function() { plotPieAll(); };
+	toolbar.appendChild(allButton);
+	
+	for (var date of listMonths().toReversed()) {
+		const button = document.createElement("button"); 
+		button.textContent = date.toLocaleString('default', { month: 'short', year: 'numeric' });
+		//Note: callback inside function called immedately to capture the variable 'date'.
+		button.onclick = function(date) {return function() { 
+			const start = new Date(date);
+			const end = new Date(date);
+			end.setMonth(start.getMonth() + 1);
+			end.setSeconds(end.getSeconds() - 1);
+			plotPieAll(date, end); 
+		}}(date);
+		toolbar.appendChild(button);
+	}
+}
+
+function qrToSvgString(qr, border) {
+		if (border < 0)
+			throw new RangeError("Border must be non-negative");
+		let parts = [];
+		for (let y = 0; y < qr.size; y++) {
+			for (let x = 0; x < qr.size; x++) {
+				if (qr.getModule(x, y))
+					parts.push(`M${x + border},${y + border}h1v1h-1z`);
+			}
+		}
+		return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="200" height="200" viewBox="0 0 ${qr.size + border * 2} ${qr.size + border * 2}" stroke="none">
+	<path d="${parts.join(" ")}" fill="#000"/>
+</svg>
+`;
+	}
+
+function genQrCode() {
+	var loc = `${window.location}`;
+	if (!loc.includes("#")) {
+		loc = loc + "#upload";
+	}
+	const code = qrcodegen.QrCode.encodeText(loc, qrcodegen.QrCode.Ecc.HIGH);
+	const svg = qrToSvgString(code, 4);
+	document.getElementById("qrImage").innerHTML = svg;
+}
+
+const startDateInput = document.getElementById("startDateInput");
+const endDateInput = document.getElementById("endDateInput");
+var dateRange = null; 
+
+async function main() {
+	let groupContainer = document.getElementById("groupContainer");
+	
+
+	const sqlPromise = initSqlJs({
+		locateFile: file => `/letempsdalice/dist/${file}`
+	});
+	const dataPromise = fetch("/letempsdalice/data.db").then(res => res.arrayBuffer());
+	const [SQL, buf] = await Promise.all([sqlPromise, dataPromise]);
+	db = new SQL.Database(new Uint8Array(buf));
+
+	dateRange = getDateRange();
+	
+	for (var group of listGroups(0)) {
+		let item = document.createElement("li")
+		item.textContent = `${group.id} - ${group.name}`;
+		groupContainer.appendChild(item);
+		let trackerList = document.createElement("ul");
+		item.appendChild(trackerList);
+		for (var tracker of listTrackersFor(group.id)) {
+			let trackerItem = document.createElement("li");
+			trackerItem.textContent = `${tracker.id} - ${tracker.name}`;
+			trackerList.appendChild(trackerItem);
+		}
+	}
+	buildToolBar();
+	if (window.location.hash == "#upload") {
+		document.getElementById("uploadOverlay").style.display = "flex";
+	}
+	else {
+		plotPieAll();
+		genQrCode();
+	}
+}
+
+main();
+
+</script>
+</html>
