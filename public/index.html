@@ -318,11 +318,14 @@ function plotPieTrackers(trackerIds) {
 	for (trackerId of trackerIds) {
 		const tracker = getTracker(trackerId);
 		const value = getTotalFor(trackerId);
-		total += value;
-		data.push({
-			name: tracker.name, 
-			y: value,
-		});
+		if (value > 0)
+		{
+			total += value;
+			data.push({
+				name: tracker.name, 
+				y: value,
+			});
+		}
 	}
 	
 	const series = [{
@@ -374,13 +377,15 @@ function plotPieAll(start = null, end = null) {
 		var trackerIndex = 0;
 		for (var tracker of trackerList) {
 			const value = getTotalFor(tracker.id, start, end);
-			groupTotal += value;
-			trackersSerie.data.push({
-				name: tracker.name, 
-				y: value,
-				color: Highcharts.color(groupColor).brighten(-0.1 + (trackerIndex * 0.3 / trackerList.length)).get(),
-			});
-			trackerIndex += 1;
+			if (value > 0) {
+				groupTotal += value;
+				trackersSerie.data.push({
+					name: tracker.name, 
+					y: value,
+					color: Highcharts.color(groupColor).brighten(-0.1 + (trackerIndex * 0.3 / trackerList.length)).get(),
+				});
+				trackerIndex += 1;
+			}
 		}
 		total += groupTotal; 
 		groupsSerie.data.push({
@@ -460,6 +465,19 @@ function uploadDBFile() {
 
 function buildToolBar() {
 	const toolbar = document.getElementById("toolbar");
+
+	const thisWeekButton = document.createElement("button");
+	thisWeekButton.textContent = "This Week";
+	thisWeekButton.onclick = function() { 
+		const startDate = new Date();
+		startDate.setHours(0,0,0,0);
+		//0 is Sunday, in that case the value of dayDiff is 6.
+		const dayDiff = (startDate.getDay() || 7) - 1;
+		startDate.setHours(-24 * dayDiff);
+		plotPieAll(startDate); 
+	};
+	toolbar.appendChild(thisWeekButton);
+
 	const allButton = document.createElement("button");
 	allButton.textContent = "All";
 	allButton.onclick = function() { plotPieAll(); };
