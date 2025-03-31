@@ -312,40 +312,14 @@ function plotPieSeries(series, total) {
 	});
 }
 
-function plotPieTrackers(trackerIds) {
-	const data = [];
-	var total = 0;
-	for (trackerId of trackerIds) {
-		const tracker = getTracker(trackerId);
-		const value = getTotalFor(trackerId);
-		if (value > 0)
-		{
-			total += value;
-			data.push({
-				name: tracker.name, 
-				y: value,
-			});
-		}
-	}
-	
-	const series = [{
-			name: 'Time',
-			colorByPoint: true,
-			innerSize: '75%',
-			data: data,
-		}];
-		
-	plotPieSeries(series, total);
-}
-
-
 function plotPieAll(start = null, end = null) {
 	setInputRange(start, end);
 	const groupsSerie = {
 		name: 'Group', 
 		colorByPoint: true, 
-		innerSize: '50%',
-		size: '60%', 
+		innerSize: '40%',
+		size: '50%',
+		minSize: "50%", 
 		data: [],
         dataLabels: {
             color: '#000',
@@ -356,7 +330,9 @@ function plotPieAll(start = null, end = null) {
 	const trackersSerie = {
 		name: 'Trackers', 
 		colorByPoint: true, 
-		innerSize: '75%', 
+		innerSize: '55%',
+		size: "65%", 
+		minSize: "65%",
 		data: [],
 		dataLabels: {
 			distance: '25%',
@@ -387,12 +363,15 @@ function plotPieAll(start = null, end = null) {
 				trackerIndex += 1;
 			}
 		}
-		total += groupTotal; 
-		groupsSerie.data.push({
-			name: group.name, 
-			y: groupTotal,
-			color: groupColor,
-		});
+		if (groupTotal > 0)
+		{
+			total += groupTotal; 
+			groupsSerie.data.push({
+				name: group.name, 
+				y: groupTotal,
+				color: groupColor,
+			});
+		}
 		groupIndex += 1; 
 	}
 	plotPieSeries([groupsSerie, trackersSerie], total);
