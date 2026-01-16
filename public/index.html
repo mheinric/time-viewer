@@ -25,10 +25,48 @@
 
 <ul id="groupContainer" style="display: none;">
 </ul>
-<div class="dateDiv">
+<div id="dateDiv">
 	From <input id="startDateInput" onchange="rangeChanged()" type="date"> to <input id="endDateInput" onchange="rangeChanged()" type="date"> inclusive
 </div>
 <div id="container"></div>
+<div id="calendarContainer" style="padding-left: 5em;display:none;">
+	<center>
+		Week starting the <input id="verifDateStart" onchange="verifDateChanged()" type="date"> 
+		<table>
+			<thead>
+				<tr>
+					<th><button id="prevWeek">&lt;</button><span>Monday</span></th>
+					<th><span>Tuesday</span></th>
+					<th><span>Wednesday</span></th>
+					<th><span>Thursday</span></th>
+					<th><span>Friday</span></th>
+					<th><span>Saturday</span></th>
+					<th><span>Sunday</span><button id="nextWeek">&gt;</button></th>
+				</tr>
+				<tr>
+					<th>01/12</th>
+					<th>02/12</th>
+					<th>03/12</th>
+					<th>04/12</th>
+					<th>05/12</th>
+					<th>06/12</th>
+					<th>07/12</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td><div class="event" style="top: 1em; left: 0.1em; width: 2em; height:10em; background-color: red; border-radius: 0.5em;"></div></td>
+					<td></td>
+					<td></td>
+					<td></td>
+					<td></td>
+					<td></td>
+					<td></td>
+				</tr>
+			</tbody>
+		</table>
+	</center>
+</div>
 <style>
 
 body {
@@ -87,7 +125,7 @@ body {
 	background-color: #555;
 }
 
-.dateDiv {
+#dateDiv {
 	padding-top: 1em;
 	text-align: center;
 }
@@ -157,6 +195,77 @@ body {
 	background-color: #888;
 }
 
+#calendarContainer table {
+	margin-top: 2em;
+	border-collapse: collapse;
+	border-bottom: 1px solid black;
+}
+
+#calendarContainer table td,
+#calendarContainer table th {
+	position: relative;
+	width: 8em;
+	border-right: 1px solid black; 
+	border-left: 1px solid black;
+}
+
+#calendarContainer table td {
+	height: 30em;
+}
+
+#calendarContainer table thead {
+	border-bottom: 1px solid black;
+	border-top: 1px solid black;
+}
+
+.event {
+	position: absolute;
+	border-radius: 5px;
+	opacity: 60%;
+	cursor: pointer;
+}
+
+.event:hover {
+	opacity: 100%;
+}
+
+.tooltipAnchor {
+	position: relative; 
+	height: 100%; 
+	width: 100%;
+}
+
+.tooltipText {
+	visibility: hidden; 
+	position: absolute; 
+	width: 10em; 
+	padding: 0.25em; 
+	border-radius: 0.5em 0.5em 0.5em 0;
+	border-width: 1px;
+	border-style: solid;
+	z-index: 1;
+	left: 105%; 
+	bottom: 105%;
+}
+
+.event:hover .tooltipText {
+	visibility: visible;
+}
+
+#prevWeek, 
+#nextWeek {
+	position: absolute;
+	font-size: 300%
+}
+
+#prevWeek {
+	right: 120%;
+}
+
+#nextWeek {
+	left: 120%;
+}
+
 </style>
 </body>
 <script>
@@ -197,8 +306,16 @@ function listGroups(parentGroup) {
 	return parseResult(db.exec(`SELECT * FROM groups_table WHERE parent_group_id = ${parentGroup};`));
 }
 
+function getGroup(groupId) {
+	return parseResult(db.exec(`SELECT * FROM groups_table WHERE id = ${groupId};`))[0];
+}
+
 function getValuesFor(trackerId) {
 	return parseResult(db.exec(`SELECT * FROM data_points_table WHERE feature_id = ${trackerId};`));
+}
+
+function getValuesInRange(start, end) {
+	return parseResult(db.exec(`SELECT * FROM data_points_table WHERE epoch_milli > ${start.valueOf()} AND epoch_milli < ${end.valueOf()} ORDER BY epoch_milli`));
 }
 
 function getTotalFor(trackerId, start = null, end = null) {
@@ -312,6 +429,20 @@ function plotPieSeries(series, total) {
 	});
 }
 
+function trackerColor(trackerId) {
+	let tracker = getTracker(trackerId); 
+	let group = getGroup(tracker.group_id);
+	let groupColor = builtinColors[group.color_index];
+	let trackerList = listTrackersFor(tracker.group_id);
+	for (var trackerIndex = 0; trackerIndex < trackerList.size; trackerIndex++) {
+		if (trackerList[trackerIndex].id == trackerId) {
+			break;
+		}
+	}
+
+	return Highcharts.color(groupColor).brighten(-0.1 + (trackerIndex * 0.3 / trackerList.length)).get()
+}
+
 function plotPieAll(start = null, end = null) {
 	setInputRange(start, end);
 	const groupsSerie = {
@@ -346,9 +477,7 @@ function plotPieAll(start = null, end = null) {
 	});
 	for (var group of allGroups) {
 		var groupTotal = 0;
-		const hue = ((groupIndex * 360.0) / allGroups.length).toFixed(0);
 		const groupColor = builtinColors[group.color_index];
-		//hslToHex(hue, 70, 70);
 		const trackerList = listTrackersFor(group.id); 
 		var trackerIndex = 0;
 		for (var tracker of trackerList) {
@@ -358,7 +487,7 @@ function plotPieAll(start = null, end = null) {
 				trackersSerie.data.push({
 					name: tracker.name, 
 					y: value,
-					color: Highcharts.color(groupColor).brighten(-0.1 + (trackerIndex * 0.3 / trackerList.length)).get(),
+					color: trackerColor(tracker.id),
 				});
 				trackerIndex += 1;
 			}
@@ -441,6 +570,146 @@ function uploadDBFile() {
 	input.click();
 }
 
+function hideCalendar() {
+	document.getElementById("container").style.display = "block";
+	document.getElementById("dateDiv").style.display = "block";
+	document.getElementById("calendarContainer").style.display = "none";	
+}
+
+function showCalendar() {
+	document.getElementById("container").style.display = "none";
+	document.getElementById("dateDiv").style.display = "none";
+	document.getElementById("calendarContainer").style.display = "initial";
+
+	//We init the field with the monday of the current week, the verifDateChanged method will be in charge of changing it to 
+	//the nearest monday before.
+	var initDate = new Date();
+	var dateOffset = initDate.getDay() == 0 ? 6 : (initDate.getDay() - 1); //Note: getDay() returns the day of the week as a number, with 0 = Sunday.
+	initDate.setDate(initDate.getDate() - dateOffset);
+	document.getElementById("verifDateStart").value = initDate.toISOString().substr(0, 10);
+	verifDateChanged();
+}
+
+function addEvent(event, index) {
+	let eventDate = new Date(0); 
+	eventDate.setUTCMilliseconds(event.epoch_milli);
+	let hours = eventDate.getHours(); //Note should be in local TZ.
+	let min = eventDate.getMinutes();
+	let sec = eventDate.getSeconds();
+	let milli = eventDate.getMilliseconds();
+	let eventLengthMilli = event.value * 1000;
+	//The calendar view displays events from 6 am to 10 pm.
+	let div = document.createElement("div"); 
+	div.classList.add("event"); 
+
+	let startHour = 0; 
+	let endHour = 24;
+
+	let totalHeightMilli = (endHour - startHour) * 60 * 60 * 1000;
+	var eventLengthPercent = eventLengthMilli / totalHeightMilli;
+	var eventOffsetPercent = ((((hours - startHour) * 60 + min) * 60 + sec) * 1000 + milli) / totalHeightMilli ; 
+	if (eventOffsetPercent > 1)
+	{
+		//TODO: log a warning
+		return;
+	}
+	if (eventOffsetPercent + eventLengthPercent > 1)
+	{
+		//We artificially cut the event at 10pm
+		eventLengthPercent = 1 - eventOffsetPercent;
+	}
+	if (eventOffsetPercent + eventLengthPercent < 0)
+	{
+		//TODO: log a warning
+		return;
+	}
+	if (eventOffsetPercent < 0)
+	{
+		//We artificially cut the event at 6am
+		eventLengthPercent = eventLengthPercent + eventOffsetPercent; 
+		eventOffsetPercent = 0; 
+	}
+	if (eventLengthPercent < 0.01) {
+		eventLengthPercent = 0.02;
+	}
+
+	div.style.left = `${5 + 30 * (index % 3)}%`;
+	div.style.width = "30%";
+	div.style.top = `${100 * eventOffsetPercent}%`;
+	div.style.height = `${100 * eventLengthPercent}%`;
+	let eventColor = trackerColor(event.feature_id)
+	div.style.backgroundColor = eventColor;
+
+	let eventDateOffset = eventDate.getDay() == 0 ? 7 : eventDate.getDay();
+
+	let tracker = getTracker(event.feature_id);
+
+	let endDate = new Date(eventDate);
+	endDate.setMilliseconds(endDate.getMilliseconds() + eventLengthMilli);
+
+	//Add a tooltip to the event
+	let anchor = document.createElement("div"); 
+	anchor.classList.add("tooltipAnchor");
+	let tooltip = document.createElement("div"); 
+	tooltip.classList.add("tooltipText");
+	tooltip.innerHTML = `<strong>${tracker.name}</strong><br>Start: ${eventDate.toLocaleTimeString()}<br>End: ${endDate.toLocaleTimeString()}`;
+	tooltip.style.borderColor = `color-mix(in srgb, ${eventColor}, black 20%)`;
+	tooltip.style.backgroundColor = `color-mix(in srgb, ${eventColor}, white 60%)`;
+	anchor.appendChild(tooltip);
+
+	div.appendChild(anchor);
+
+	document.querySelector(`#calendarContainer tbody td:nth-child(${eventDateOffset})`).appendChild(div);
+}
+
+function verifDateChanged() {
+	//Clear all events from table.
+	for (var eventDiv of document.querySelectorAll("#calendarContainer tbody .event"))
+	{
+		eventDiv.remove();
+	}
+
+	let verifDateInput = document.getElementById("verifDateStart");
+	var initDate = verifDateInput.valueAsDate;
+	var endDate = new Date(initDate);
+	endDate.setDate(initDate.getDate() + 7);
+
+	//Select all events that overlap this
+	let events = getValuesInRange(initDate, endDate);
+	var index = 0;
+	for (var event of events)
+	{
+		addEvent(event, index);
+		index += 1;
+	}
+
+	//Update the dates in the table.
+	for (var i = 0; i < 7; i++)
+	{
+		let dayDate = new Date(initDate); 
+		dayDate.setDate(dayDate.getDate() + i);
+		let month = String(dayDate.getMonth() + 1).padStart(2, '0'); 
+		let day = String(dayDate.getDate()).padStart(2, '0'); 
+		document.querySelector(`#calendarContainer thead tr:nth-child(2) th:nth-child(${i+1})`).textContent = `${day}/${month}`;
+		let dayName = dayDate.toLocaleDateString("en-GB", { weekday : "long" });
+		document.querySelector(`#calendarContainer thead tr:nth-child(1) th:nth-child(${i+1}) span`).textContent = dayName;
+	}
+}
+
+function moveCalendarBy(nbDays) {
+	let currDate = document.getElementById("verifDateStart").valueAsDate;
+	currDate.setDate(currDate.getDate() + nbDays); 
+	document.getElementById("verifDateStart").value = currDate.toISOString().substr(0, 10);
+	verifDateChanged();
+}
+
+document.getElementById("prevWeek").onclick = function() {
+	moveCalendarBy(-7);
+}
+
+document.getElementById("nextWeek").onclick = function() {
+	moveCalendarBy(7);
+}
 
 function buildToolBar() {
 	const toolbar = document.getElementById("toolbar");
@@ -459,14 +728,20 @@ function buildToolBar() {
 
 	const allButton = document.createElement("button");
 	allButton.textContent = "All";
-	allButton.onclick = function() { plotPieAll(); };
+	allButton.onclick = function() { hideCalendar(); plotPieAll(); };
 	toolbar.appendChild(allButton);
 	
+	var nbInserted = 0;
 	for (var date of listMonths().toReversed()) {
+		nbInserted++; 
+		if (nbInserted >= 5) {
+			break;
+		}
 		const button = document.createElement("button"); 
 		button.textContent = date.toLocaleString('default', { month: 'short', year: 'numeric' });
 		//Note: callback inside function called immedately to capture the variable 'date'.
 		button.onclick = function(date) {return function() { 
+			hideCalendar();
 			const start = new Date(date);
 			const end = new Date(date);
 			end.setMonth(start.getMonth() + 1);
@@ -475,6 +750,11 @@ function buildToolBar() {
 		}}(date);
 		toolbar.appendChild(button);
 	}
+
+	const calendarButton = document.createElement("button"); 
+	calendarButton.textContent = "Verif";
+	calendarButton.onclick = function() { showCalendar(); };
+	toolbar.appendChild(calendarButton);
 }
 
 function qrToSvgString(qr, border) {
@@ -542,6 +822,9 @@ async function main() {
 		plotPieAll();
 		genQrCode();
 	}
+	showCalendar();
+	document.getElementById("verifDateStart").value = "2024-11-10"; 
+	verifDateChanged();
 }
 
 main();
