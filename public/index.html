@@ -607,35 +607,14 @@ function addEvent(event, index) {
 
 	let totalHeightMilli = (endHour - startHour) * 60 * 60 * 1000;
 	var eventLengthPercent = eventLengthMilli / totalHeightMilli;
-	var eventOffsetPercent = ((((hours - startHour) * 60 + min) * 60 + sec) * 1000 + milli) / totalHeightMilli ; 
-	if (eventOffsetPercent > 1)
-	{
-		//TODO: log a warning
-		return;
-	}
-	if (eventOffsetPercent + eventLengthPercent > 1)
-	{
-		//We artificially cut the event at 10pm
-		eventLengthPercent = 1 - eventOffsetPercent;
-	}
-	if (eventOffsetPercent + eventLengthPercent < 0)
-	{
-		//TODO: log a warning
-		return;
-	}
-	if (eventOffsetPercent < 0)
-	{
-		//We artificially cut the event at 6am
-		eventLengthPercent = eventLengthPercent + eventOffsetPercent; 
-		eventOffsetPercent = 0; 
-	}
+	var eventOffsetPercent = ((((hours - startHour) * 60 + min) * 60 + sec) * 1000 + milli) / totalHeightMilli; 
 	if (eventLengthPercent < 0.01) {
-		eventLengthPercent = 0.02;
+		eventLengthPercent = 0.01;
 	}
 
-	div.style.left = `${5 + 30 * (index % 3)}%`;
-	div.style.width = "30%";
-	div.style.top = `${100 * eventOffsetPercent}%`;
+	div.style.left = `${5 + 10 * (index % 2)}%`;
+	div.style.width = "80%";
+	div.style.top = `${100 * (eventOffsetPercent - eventLengthPercent)}%`;
 	div.style.height = `${100 * eventLengthPercent}%`;
 	let eventColor = trackerColor(event.feature_id)
 	div.style.backgroundColor = eventColor;
@@ -644,15 +623,15 @@ function addEvent(event, index) {
 
 	let tracker = getTracker(event.feature_id);
 
-	let endDate = new Date(eventDate);
-	endDate.setMilliseconds(endDate.getMilliseconds() + eventLengthMilli);
+	let startDate = new Date(eventDate);
+	startDate.setMilliseconds(startDate.getMilliseconds() - eventLengthMilli);
 
 	//Add a tooltip to the event
 	let anchor = document.createElement("div"); 
 	anchor.classList.add("tooltipAnchor");
 	let tooltip = document.createElement("div"); 
 	tooltip.classList.add("tooltipText");
-	tooltip.innerHTML = `<strong>${tracker.name}</strong><br>Start: ${eventDate.toLocaleTimeString()}<br>End: ${endDate.toLocaleTimeString()}`;
+	tooltip.innerHTML = `<strong>${tracker.name}</strong><br>Start: ${startDate.toLocaleTimeString()}<br>End: ${eventDate.toLocaleTimeString()}`;
 	tooltip.style.borderColor = `color-mix(in srgb, ${eventColor}, black 20%)`;
 	tooltip.style.backgroundColor = `color-mix(in srgb, ${eventColor}, white 60%)`;
 	anchor.appendChild(tooltip);
