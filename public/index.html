@@ -696,6 +696,7 @@ function buildToolBar() {
 	const thisWeekButton = document.createElement("button");
 	thisWeekButton.textContent = "This Week";
 	thisWeekButton.onclick = function() { 
+		hideCalendar();
 		const startDate = new Date();
 		startDate.setHours(0,0,0,0);
 		//0 is Sunday, in that case the value of dayDiff is 6.
