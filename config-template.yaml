@@ -1,0 +1,6 @@
+#The port used for hosting the website
+port: 8000
+#Base url from which the website is served
+base_url: /
+#Maximum size for the database file
+max_db_size: 10
