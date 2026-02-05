@@ -1,0 +1,196 @@
+body {
+	margin: 0;
+	font-family: Arial, sans-serif;
+}
+
+.toolbar {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 60px;
+	height: 100vh;
+	background-color: #333;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding-top: 20px;
+	z-index: 1;
+	overflow: scroll;
+}
+.toolbar button {
+	width: 40px;
+	height: 40px;
+	margin-bottom: 10px;
+	border: none;
+	border-radius: 5px;
+	cursor: pointer;
+	background-color: #444;
+	color: white;
+	transition: background-color 0.3s ease;
+}
+.toolbar button:hover {
+	background-color: #555;
+}
+
+.topbar {
+	position: absolute; 
+	x: 0; 
+	y : 0;
+	padding-left: 70px;
+}
+
+.topbar button {
+	width: 40px;
+	height: 40px;
+	margin-right: 10px;
+	border: none;
+	border-radius: 0 0 10px 10px;
+	cursor: pointer;
+	background-color: #444;
+	color: white;
+}
+
+.topbar button:hover {
+	background-color: #555;
+}
+
+#dateDiv {
+	padding-top: 1em;
+	text-align: center;
+}
+
+#container {
+	height: 90vh;
+}
+
+#qrCodeOverlay {
+	display: none; /* set to 'flex' to display */
+	position: absolute; 
+	x: 0; 
+	y: 0; 
+	width: 100vw; 
+	height: 100vh; 
+	background-color: rgba(255, 255, 255, 0.9);
+	z-index: 10;
+	justify-content: center;
+	align-items: center;
+	flex-direction: column;
+}
+
+#qrCodeOverlay svg {
+	background-color: white;
+}
+
+#qrCodeOverlay button {
+	border: none;
+	border-radius: 5px;
+	padding: 3px 8px;
+	cursor: pointer;
+	background-color: #444;
+	color: white;
+	font-weight: bold;
+}
+
+#qrCodeOverlay button:hover {
+	background-color: #888;
+}
+
+#uploadOverlay {
+	display: none; /* set to 'flex' to display */
+	position: absolute; 
+	x: 0; 
+	y: 0; 
+	width: 100vw; 
+	height: 100vh; 
+	background-color: rgba(255, 255, 255, 0.9);
+	z-index: 10;
+	justify-content: center;
+	align-items: center;
+	flex-direction: column;
+}
+
+#uploadOverlay button {
+	border: none;
+	border-radius: 30px;
+	padding: 20px;
+	margin: 5px;
+	cursor: pointer;
+	background-color: #444;
+	color: white;
+	font-weight: bold;
+}
+
+#uploadOverlay button:hover {
+	background-color: #888;
+}
+
+#calendarContainer table {
+	margin-top: 2em;
+	border-collapse: collapse;
+	border-bottom: 1px solid black;
+}
+
+#calendarContainer table td,
+#calendarContainer table th {
+	position: relative;
+	width: calc(min(8em, 10vw));
+	border-right: 1px solid black; 
+	border-left: 1px solid black;
+}
+
+#calendarContainer table td {
+	height: 30em;
+}
+
+#calendarContainer table thead {
+	border-bottom: 1px solid black;
+	border-top: 1px solid black;
+}
+
+.event {
+	position: absolute;
+	border-radius: 5px;
+	opacity: 60%;
+	cursor: pointer;
+}
+
+.event:hover {
+	opacity: 100%;
+}
+
+.tooltipAnchor {
+	position: relative; 
+	height: 100%; 
+	width: 100%;
+}
+
+.tooltipText {
+	visibility: hidden; 
+	position: absolute; 
+	width: 10em; 
+	padding: 0.25em; 
+	border-radius: 0.5em 0.5em 0.5em 0;
+	border-width: 1px;
+	border-style: solid;
+	z-index: 1;
+	left: 105%; 
+	bottom: 105%;
+}
+
+.event:hover .tooltipText {
+	visibility: visible;
+}
+
+#prevWeek, 
+#nextWeek {
+	position: absolute;
+	font-size: 300%
+}
+
+#prevWeek {
+	right: 120%;
+}
+
+#nextWeek {
+	left: 120%;
+}
