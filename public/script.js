@@ -1,519 +1,153 @@
-var db;
-
-function parseResult(sqlResult) {
-	if (sqlResult.length == 0) 
-	{
-		return [];
-	}
-	sqlResult = sqlResult[0];
-	const res = [];
-	for (var sqlRow of sqlResult.values) {
-		const row = {};
-		for (var i in sqlResult.columns) {
-			Object.defineProperty(row, sqlResult.columns[i], { value: sqlRow[i] });
-		}
-		res.push(row);
-	}
-	return res;
-}
-
-function listTrackers() {
-	return parseResult(db.exec("SELECT * FROM features_table;"));
-}
-
-function getTracker(trackerId) {
-	return parseResult(db.exec(`SELECT * FROM features_table WHERE id = ${trackerId};`))[0];
-}
-
-function listTrackersFor(group) {
-	return parseResult(db.exec(`SELECT * FROM features_table WHERE group_id = ${group};`));
-}
-
-function listGroups(parentGroup) {
-	return parseResult(db.exec(`SELECT * FROM groups_table WHERE parent_group_id = ${parentGroup};`));
-}
-
-function getGroup(groupId) {
-	return parseResult(db.exec(`SELECT * FROM groups_table WHERE id = ${groupId};`))[0];
-}
-
-function getValuesFor(trackerId) {
-	return parseResult(db.exec(`SELECT * FROM data_points_table WHERE feature_id = ${trackerId};`));
-}
-
-function getValuesInRange(start, end) {
-	return parseResult(db.exec(`SELECT * FROM data_points_table WHERE epoch_milli > ${start.valueOf()} AND epoch_milli < ${end.valueOf()} ORDER BY epoch_milli`));
-}
-
-function getTotalFor(trackerId, start = null, end = null) {
-	const startFilter = start != null ? `AND epoch_milli > ${start.valueOf()}` : ""; 
-	const endFilter = end != null ? `AND epoch_milli < ${end.valueOf()}` : ""; 
-	return db.exec(`SELECT SUM(value) FROM data_points_table WHERE feature_id = ${trackerId} ${startFilter} ${endFilter}`)[0].values[0] / 3600.0;
-}
-
-function getDateRange() {
-	const queryRes = parseResult(db.exec(`SELECT MIN(epoch_milli) AS Start, MAX(epoch_milli) AS End FROM data_points_table;`))[0];
-	const startDate = new Date(queryRes.Start);
-	const endDate = new Date(queryRes.End);
-	startDate.setHours(0, 0, 0, 0); 
-	startDate.setDate(1);
-	endDate.setHours(0, 0, 0, 0); 
-	endDate.setDate(1); 
-	endDate.setMonth(endDate.getMonth() + 1);
-	return {
-		start: startDate, 
-		end: endDate,
-	};
-}
-
-function listMonths() {
-	const range = getDateRange(); 
-	const currentDate = new Date(range.start);
-	const result = [];
-	result.push(new Date(currentDate));
-	currentDate.setMonth(currentDate.getMonth() + 1);
-	while (currentDate < range.end) {
-		result.push(new Date(currentDate)); 
-		currentDate.setMonth(currentDate.getMonth() + 1);
-	}
-	return result;
-}
-
-function hslToHex(h, s, l) {
-  l /= 100;
-  const a = s * Math.min(l, 1 - l) / 100;
-  const f = n => {
-    const k = (n + h / 30) % 12;
-    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-    return Math.round(255 * color).toString(16).padStart(2, '0');   // convert to Hex and prefix "0" if needed
-  };
-  return `#${f(0)}${f(8)}${f(4)}`;
-}
-
-const builtinColors = [
-	"#a50026",
-	"#d73027",
-	"#f46d43",
-	"#fdae61",
-	"#fee090",
-	"#e0f3f8",
-	"#abd9e9",
-	"#74add1",
-	"#4575b4",
-	"#313695",
-	"#54D931",
-	"#1B8200",
-];
-
-function plotPieSeries(series, total) {
-	Highcharts.chart('container', {
-		chart: {
-			type: 'pie',
-			custom: {
-			},
-			events: {
-				render() {
-					const chart = this;
-					const series = chart.series[0];
-					let customLabel = chart.options.chart.custom.label;
-
-					if (!customLabel) {
-						customLabel = chart.options.chart.custom.label =
-							chart.renderer.label(
-								'Total:<br/>' +
-								`<strong>${total.toFixed(1)}h</strong>`
-							)
-								.css({
-									color: '#000',
-									textAnchor: 'middle'
-								})
-								.add();
-					}
-
-					// Set font size based on chart diameter
-					customLabel.css({
-						fontSize: `${series.center[2] / 12}px`
-					});
-					
-					const x = series.center[0] + chart.plotLeft;
-					const y = series.center[1] + chart.plotTop - customLabel.attr('height') / 2;
-
-					customLabel.attr({ x, y });
-				}
-			}
-		},
-		title: { text: null },
-		tooltip: { pointFormat: '<b>{point.y:.1f}h ({point.percentage:.0f}%)</b>' },
-		legend: { enabled: false },
-		plotOptions: {
-			pie: {
-				shadow: false,
-				center: ['50%', '50%']
-			}
-		},
-		series: series,
-	});
-}
-
-function trackerColor(trackerId) {
-	let tracker = getTracker(trackerId); 
-	let group = getGroup(tracker.group_id);
-	let groupColor = builtinColors[group.color_index];
-	let trackerList = listTrackersFor(tracker.group_id);
-	for (var trackerIndex = 0; trackerIndex < trackerList.size; trackerIndex++) {
-		if (trackerList[trackerIndex].id == trackerId) {
-			break;
-		}
-	}
-
-	return Highcharts.color(groupColor).brighten(-0.1 + (trackerIndex * 0.3 / trackerList.length)).get()
-}
-
-function plotPieAll(start = null, end = null) {
-	setInputRange(start, end);
-	const groupsSerie = {
-		name: 'Group', 
-		colorByPoint: true, 
-		innerSize: '50%', //Note this is a percent of 'size', so here 50% of 65% of the surface area.
-		size: '50%',
-		minSize: "50%", 
-		data: [],
-        dataLabels: {
-            color: '#000',
-            distance: '-25%', 
-            size: '5pt',
-        }
-	}; 
-	const trackersSerie = {
-		name: 'Trackers', 
-		colorByPoint: true, 
-		innerSize: '77%',
-		size: "65%", 
-		minSize: "65%",
-		data: [],
-		dataLabels: {
-			distance: '25%',
-		}
-	};
-	var total = 0;
-	var groupIndex = 0; 
-	const allGroups = listGroups(0);
-	allGroups.sort(function (groupA, groupB) {
-		return groupA.display_index - groupB.display_index;
-	});
-	for (var group of allGroups) {
-		var groupTotal = 0;
-		const groupColor = builtinColors[group.color_index];
-		const trackerList = listTrackersFor(group.id); 
-		var trackerIndex = 0;
-		for (var tracker of trackerList) {
-			const value = getTotalFor(tracker.id, start, end);
-			if (value > 0) {
-				groupTotal += value;
-				trackersSerie.data.push({
-					name: tracker.name, 
-					y: value,
-					color: trackerColor(tracker.id),
-				});
-				trackerIndex += 1;
-			}
-		}
-		if (groupTotal > 0)
-		{
-			total += groupTotal; 
-			groupsSerie.data.push({
-				name: group.name, 
-				y: groupTotal,
-				color: groupColor,
-			});
-		}
-		groupIndex += 1; 
-	}
-	plotPieSeries([groupsSerie, trackersSerie], total);
-}
-
-//Sets the values for the two input widgets
-function setInputRange(start, end) {
-	const startValue = new Date(((start == null) ? dateRange.start : start)); 
-	const endValue = new Date((end == null) ? dateRange.end : end);
-	// Need to subtract the timezone as offset because for some reason, the dates are displayed 
-	// as UTC time (so midnight at UTC + 1, is actually 23h the day before...).
-	startValue.setMinutes(startValue.getMinutes() - startValue.getTimezoneOffset());
-	endValue.setMinutes(endValue.getMinutes() - endValue.getTimezoneOffset());
-	//Add one second to startValue and subtract one second from endValue to make sure that they show the correct
-	//day.
-	startValue.setSeconds(startValue.getSeconds() + 1); 
-	endValue.setSeconds(endValue.getSeconds() - 1); 
-	startDateInput.valueAsDate = startValue;
-	endDateInput.valueAsDate = endValue; 
-}
-
-
-function rangeChanged() {
-	const startDate = new Date(startDateInput.valueAsDate);
-	const endDate = new Date(endDateInput.valueAsDate);
-	startDate.setHours(0,0,0,0);
-	endDate.setHours(0,0,0,0); 
-	endDate.setDate(endDate.getDate() + 1);
-	plotPieAll(startDate, endDate);
-}
-
+// Ask the user to select the .db file to upload it, and send a request with 
+// the selected file
 function uploadDBFile() {
-	// Create an input element for selecting files
-	const input = document.createElement("input");
-	input.type = "file";
-	input.accept = ".db";
+    // Create an input element for selecting files
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".db";
 
-	// Listen for change event (when a file is selected)
-	input.addEventListener("change", () => {
-		if (!input.files || !input.files[0]) return;
+    // Listen for change event (when a file is selected)
+    input.addEventListener("change", () => {
+        if (!input.files || !input.files[0]) return;
 
-		const file = input.files[0];
-		const formData = new FormData();
+        const file = input.files[0];
+        const formData = new FormData();
 
-		// Append the selected file to FormData
-		formData.append("dbFile", file);
+        // Append the selected file to FormData
+        formData.append("dbFile", file);
 
-		// Send the file to the server using XMLHttpRequest
-		const xhr = new XMLHttpRequest();
-		xhr.open("POST", "upload", true);
-		xhr.onload = () => {
-			if (xhr.status === 200) {
-				console.log("File uploaded successfully.");
-				if (window.location.hash == "#upload") {
-					window.location.hash = ""; 
-				}
-				window.location.reload();
-			} else {
-				console.error("Error uploading file:", xhr.responseText);
-				alert("Failed to upload file");
-			}
-		};
-		xhr.send(formData);
-	});
+        // Send the file to the server using XMLHttpRequest
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "upload", true);
+        xhr.onload = () => {
+            if (xhr.status === 200) {
+                console.log("File uploaded successfully.");
+                if (window.location.hash == "#upload") {
+                    window.location.hash = ""; 
+                }
+                //When the upload is successfull, we reload the page to take the 
+                //new data into account.
+                window.location.reload();
+            } else {
+                console.error("Error uploading file:", xhr.responseText);
+                alert("Failed to upload file");
+            }
+        };
+        xhr.send(formData);
+    });
 
-	// Trigger click event on the input element to open the file selector
-	input.click();
+    // Trigger click event on the input element to open the file selector
+    input.click();
 }
 
+// Hide the calendar view, and move to the piechart view
 function hideCalendar() {
-	document.getElementById("container").style.display = "block";
-	document.getElementById("dateDiv").style.display = "block";
-	document.getElementById("calendarContainer").style.display = "none";	
+    document.getElementById("container").style.display = "block";
+    document.getElementById("dateDiv").style.display = "block";
+    document.getElementById("calendarContainer").style.display = "none";    
 }
 
+// Hide the piechart and display the calendar view
 function showCalendar() {
-	document.getElementById("container").style.display = "none";
-	document.getElementById("dateDiv").style.display = "none";
-	document.getElementById("calendarContainer").style.display = "initial";
-
-	//We init the field with the monday of the current week, the verifDateChanged method will be in charge of changing it to 
-	//the nearest monday before.
-	var initDate = new Date();
-	var dateOffset = initDate.getDay() == 0 ? 6 : (initDate.getDay() - 1); //Note: getDay() returns the day of the week as a number, with 0 = Sunday.
-	initDate.setDate(initDate.getDate() - dateOffset);
-	document.getElementById("verifDateStart").value = initDate.toISOString().substr(0, 10);
-	verifDateChanged();
+    document.getElementById("container").style.display = "none";
+    document.getElementById("dateDiv").style.display = "none";
+    document.getElementById("calendarContainer").style.display = "initial";
 }
 
-function addEvent(event, index) {
-	let eventDate = new Date(0); 
-	eventDate.setUTCMilliseconds(event.epoch_milli);
-	let hours = eventDate.getHours(); //Note should be in local TZ.
-	let min = eventDate.getMinutes();
-	let sec = eventDate.getSeconds();
-	let milli = eventDate.getMilliseconds();
-	let eventLengthMilli = event.value * 1000;
-	//The calendar view displays events from 6 am to 10 pm.
-	let div = document.createElement("div"); 
-	div.classList.add("event"); 
-
-	let startHour = 0; 
-	let endHour = 24;
-
-	let totalHeightMilli = (endHour - startHour) * 60 * 60 * 1000;
-	var eventLengthPercent = eventLengthMilli / totalHeightMilli;
-	var eventOffsetPercent = ((((hours - startHour) * 60 + min) * 60 + sec) * 1000 + milli) / totalHeightMilli; 
-	if (eventLengthPercent < 0.01) {
-		eventLengthPercent = 0.01;
-	}
-
-	div.style.left = `${5 + 10 * (index % 2)}%`;
-	div.style.width = "80%";
-	div.style.top = `${100 * (eventOffsetPercent - eventLengthPercent)}%`;
-	div.style.height = `${100 * eventLengthPercent}%`;
-	let eventColor = trackerColor(event.feature_id)
-	div.style.backgroundColor = eventColor;
-
-	let eventDateOffset = eventDate.getDay() == 0 ? 7 : eventDate.getDay();
-
-	let tracker = getTracker(event.feature_id);
-
-	let startDate = new Date(eventDate);
-	startDate.setMilliseconds(startDate.getMilliseconds() - eventLengthMilli);
-
-	//Add a tooltip to the event
-	let anchor = document.createElement("div"); 
-	anchor.classList.add("tooltipAnchor");
-	let tooltip = document.createElement("div"); 
-	tooltip.classList.add("tooltipText");
-	tooltip.innerHTML = `<strong>${tracker.name}</strong><br>Start: ${startDate.toLocaleTimeString()}<br>End: ${eventDate.toLocaleTimeString()}`;
-	tooltip.style.borderColor = `color-mix(in srgb, ${eventColor}, black 20%)`;
-	tooltip.style.backgroundColor = `color-mix(in srgb, ${eventColor}, white 60%)`;
-	anchor.appendChild(tooltip);
-
-	div.appendChild(anchor);
-
-	document.querySelector(`#calendarContainer tbody td:nth-child(${eventDateOffset})`).appendChild(div);
-}
-
-function verifDateChanged() {
-	//Clear all events from table.
-	for (var eventDiv of document.querySelectorAll("#calendarContainer tbody .event"))
-	{
-		eventDiv.remove();
-	}
-
-	let verifDateInput = document.getElementById("verifDateStart");
-	var initDate = verifDateInput.valueAsDate;
-	var endDate = new Date(initDate);
-	endDate.setDate(initDate.getDate() + 7);
-
-	//Select all events that overlap this
-	let events = getValuesInRange(initDate, endDate);
-	var index = 0;
-	for (var event of events)
-	{
-		addEvent(event, index);
-		index += 1;
-	}
-
-	//Update the dates in the table.
-	for (var i = 0; i < 7; i++)
-	{
-		let dayDate = new Date(initDate); 
-		dayDate.setDate(dayDate.getDate() + i);
-		let month = String(dayDate.getMonth() + 1).padStart(2, '0'); 
-		let day = String(dayDate.getDate()).padStart(2, '0'); 
-		document.querySelector(`#calendarContainer thead tr:nth-child(2) th:nth-child(${i+1})`).textContent = `${day}/${month}`;
-		let dayName = dayDate.toLocaleDateString("en-GB", { weekday : "long" });
-		document.querySelector(`#calendarContainer thead tr:nth-child(1) th:nth-child(${i+1}) span`).textContent = dayName;
-	}
-}
-
-function moveCalendarBy(nbDays) {
-	let currDate = document.getElementById("verifDateStart").valueAsDate;
-	currDate.setDate(currDate.getDate() + nbDays); 
-	document.getElementById("verifDateStart").value = currDate.toISOString().substr(0, 10);
-	verifDateChanged();
-}
-
-document.getElementById("prevWeek").onclick = function() {
-	moveCalendarBy(-7);
-}
-
-document.getElementById("nextWeek").onclick = function() {
-	moveCalendarBy(7);
-}
-
+// Build the toolbar with the buttons to access the calendar view or to 
+// set the date range to specific values.
+// Note: we need the DB to be loaded before calling this function because 
+// the buttons created depend on the date of the latest events in the DB.
 function buildToolBar() {
-	const toolbar = document.getElementById("toolbar");
+    const toolbar = document.getElementById("toolbar");
 
-	const thisWeekButton = document.createElement("button");
-	thisWeekButton.textContent = "This Week";
-	thisWeekButton.onclick = function() { 
-		hideCalendar();
-		const startDate = new Date();
-		startDate.setHours(0,0,0,0);
-		//0 is Sunday, in that case the value of dayDiff is 6.
-		const dayDiff = (startDate.getDay() || 7) - 1;
-		startDate.setHours(-24 * dayDiff);
-		plotPieAll(startDate); 
-	};
-	toolbar.appendChild(thisWeekButton);
+    const thisWeekButton = document.createElement("button");
+    thisWeekButton.textContent = "This Week";
+    thisWeekButton.onclick = function() { 
+        hideCalendar();
+        const startDate = new Date();
+        startDate.setHours(0,0,0,0);
+        //0 is Sunday, in that case the value of dayDiff is 6.
+        const dayDiff = (startDate.getDay() || 7) - 1;
+        startDate.setHours(-24 * dayDiff);
+        updatePieChartRange(startDate, null);
+        updatePieChart(); 
+    };
+    toolbar.appendChild(thisWeekButton);
 
-	const allButton = document.createElement("button");
-	allButton.textContent = "All";
-	allButton.onclick = function() { hideCalendar(); plotPieAll(); };
-	toolbar.appendChild(allButton);
-	
-	var nbInserted = 0;
-	for (var date of listMonths().toReversed()) {
-		nbInserted++; 
-		if (nbInserted >= 5) {
-			break;
-		}
-		const button = document.createElement("button"); 
-		button.textContent = date.toLocaleString('default', { month: 'short', year: 'numeric' });
-		//Note: callback inside function called immedately to capture the variable 'date'.
-		button.onclick = function(date) {return function() { 
-			hideCalendar();
-			const start = new Date(date);
-			const end = new Date(date);
-			end.setMonth(start.getMonth() + 1);
-			end.setSeconds(end.getSeconds() - 1);
-			plotPieAll(date, end); 
-		}}(date);
-		toolbar.appendChild(button);
-	}
+    const allButton = document.createElement("button");
+    allButton.textContent = "All";
+    allButton.onclick = function() { 
+        hideCalendar(); 
+        updatePieChartRange(null, null);
+        updatePieChart(); 
+    };
+    toolbar.appendChild(allButton);
+    
+    var nbInserted = 0;
+    for (var date of listMonths().toReversed()) {
+        nbInserted++; 
+        if (nbInserted >= 5) {
+            break;
+        }
+        const button = document.createElement("button"); 
+        button.textContent = date.toLocaleString('default', { month: 'short', year: 'numeric' });
+        //Note: callback inside function called immedately to capture the variable 'date'.
+        button.onclick = function(date) {return function() { 
+            hideCalendar();
+            const start = new Date(date);
+            const end = new Date(date);
+            end.setMonth(start.getMonth() + 1);
+            end.setSeconds(end.getSeconds() - 1);
+            updatePieChartRange(date, end);
+            updatePieChart(); 
+        }}(date);
+        toolbar.appendChild(button);
+    }
 
-	const calendarButton = document.createElement("button"); 
-	calendarButton.textContent = "Verif";
-	calendarButton.onclick = function() { showCalendar(); };
-	toolbar.appendChild(calendarButton);
+    const calendarButton = document.createElement("button"); 
+    calendarButton.textContent = "Verif";
+    calendarButton.onclick = function() { showCalendar(); };
+    toolbar.appendChild(calendarButton);
 }
 
-function qrToSvgString(qr, border) {
-		if (border < 0)
-			throw new RangeError("Border must be non-negative");
-		let parts = [];
-		for (let y = 0; y < qr.size; y++) {
-			for (let x = 0; x < qr.size; x++) {
-				if (qr.getModule(x, y))
-					parts.push(`M${x + border},${y + border}h1v1h-1z`);
-			}
-		}
-		return `<?xml version="1.0" encoding="UTF-8"?>
+//Generate a QR code for the upload page
+//Makes it easier to navigate to the same page on mobile when visiting the website on
+//the computer
+function genQrCode() {
+    var loc = `${window.location}`;
+    if (!loc.includes("#")) {
+        loc = loc + "#upload";
+    }
+    const code = qrcodegen.QrCode.encodeText(loc, qrcodegen.QrCode.Ecc.HIGH);
+    const border = 4;
+        let parts = [];
+        for (let y = 0; y < code.size; y++) {
+            for (let x = 0; x < code.size; x++) {
+                if (code.getModule(x, y))
+                    parts.push(`M${x + border},${y + border}h1v1h-1z`);
+            }
+        }
+        const svg  = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="200" height="200" viewBox="0 0 ${qr.size + border * 2} ${qr.size + border * 2}" stroke="none">
-	<path d="${parts.join(" ")}" fill="#000"/>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="200" height="200" viewBox="0 0 ${code.size + border * 2} ${code.size + border * 2}" stroke="none">
+    <path d="${parts.join(" ")}" fill="#000"/>
 </svg>
 `;
-	}
-
-function genQrCode() {
-	var loc = `${window.location}`;
-	if (!loc.includes("#")) {
-		loc = loc + "#upload";
-	}
-	const code = qrcodegen.QrCode.encodeText(loc, qrcodegen.QrCode.Ecc.HIGH);
-	const svg = qrToSvgString(code, 4);
-	document.getElementById("qrImage").innerHTML = svg;
+    document.getElementById("qrImage").innerHTML = svg;
 }
 
-const startDateInput = document.getElementById("startDateInput");
-const endDateInput = document.getElementById("endDateInput");
-var dateRange = null; 
-
 async function main() {
-
-	const sqlPromise = initSqlJs({
-		locateFile: file => `dist/${file}`
-	});
-	const dataPromise = fetch("data.db").then(res => res.arrayBuffer());
-	const [SQL, buf] = await Promise.all([sqlPromise, dataPromise]);
-	db = new SQL.Database(new Uint8Array(buf));
-
-	dateRange = getDateRange();
-
-	buildToolBar();
-	if (window.location.hash == "#upload") {
-		document.getElementById("uploadOverlay").style.display = "flex";
-	}
-	else {
-		plotPieAll();
-		genQrCode();
-	}
+    await loadDB();
+    buildToolBar();
+    if (window.location.hash == "#upload") {
+        document.getElementById("uploadOverlay").style.display = "flex";
+    }
+    else {
+        genQrCode();
+        updatePieChartRange(null, null);
+        initCalendar();
+    }
 }
 
 main();
