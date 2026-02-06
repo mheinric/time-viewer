@@ -62,18 +62,18 @@ function plotPieChart(start = null, end = null) {
         }
     };
     //Populate the two objects by retrieving the data matching the input range from the database
-    var total = 0;
-    var groupIndex = 0; 
+    let total = 0;
+    let groupIndex = 0; 
     const allGroups = listGroups(0);
     allGroups.sort(function (groupA, groupB) {
         return groupA.display_index - groupB.display_index;
     });
-    for (var group of allGroups) {
-        var groupTotal = 0;
+    for (let group of allGroups) {
+        let groupTotal = 0;
         const groupColor = builtinColors[group.color_index];
         const trackerList = listTrackersFor(group.id); 
-        var trackerIndex = 0;
-        for (var tracker of trackerList) {
+        let trackerIndex = 0;
+        for (let tracker of trackerList) {
             const value = getTotalFor(tracker.id, start, end);
             //Trackers with no data point in the range are omitted to avoid creating 
             //empty portions in the pie chart.

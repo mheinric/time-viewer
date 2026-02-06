@@ -84,8 +84,8 @@ function buildToolBar() {
     };
     toolbar.appendChild(allButton);
     
-    var nbInserted = 0;
-    for (var date of listMonths().toReversed()) {
+    let nbInserted = 0;
+    for (let date of listMonths().toReversed()) {
         nbInserted++; 
         if (nbInserted >= 5) {
             break;
@@ -93,7 +93,7 @@ function buildToolBar() {
         const button = document.createElement("button"); 
         button.textContent = date.toLocaleString('default', { month: 'short', year: 'numeric' });
         //Note: callback inside function called immedately to capture the variable 'date'.
-        button.onclick = function(date) {return function() { 
+        button.onclick = function() { 
             hideCalendar();
             const start = new Date(date);
             const end = new Date(date);
@@ -101,7 +101,7 @@ function buildToolBar() {
             end.setSeconds(end.getSeconds() - 1);
             updatePieChartRange(date, end);
             updatePieChart(); 
-        }}(date);
+        };
         toolbar.appendChild(button);
     }
 

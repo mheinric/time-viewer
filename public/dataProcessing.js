@@ -1,6 +1,6 @@
-var db;
+let db = null;
 //The full range of dates that appear in the data
-var fullDateRange = null; 
+let fullDateRange = null; 
 
 function parseResult(sqlResult) {
     if (sqlResult.length == 0) 
@@ -9,9 +9,9 @@ function parseResult(sqlResult) {
     }
     sqlResult = sqlResult[0];
     const res = [];
-    for (var sqlRow of sqlResult.values) {
+    for (let sqlRow of sqlResult.values) {
         const row = {};
-        for (var i in sqlResult.columns) {
+        for (let i in sqlResult.columns) {
             Object.defineProperty(row, sqlResult.columns[i], { value: sqlRow[i] });
         }
         res.push(row);
@@ -100,10 +100,10 @@ const builtinColors = [
 
 // Retrieves the color associated with a given tracker id
 function trackerColor(trackerId) {
-    let tracker = getTracker(trackerId); 
-    let group = getGroup(tracker.group_id);
-    let groupColor = builtinColors[group.color_index];
-    let trackerList = listTrackersFor(tracker.group_id);
+    const tracker = getTracker(trackerId); 
+    const group = getGroup(tracker.group_id);
+    const groupColor = builtinColors[group.color_index];
+    const trackerList = listTrackersFor(tracker.group_id);
     for (var trackerIndex = 0; trackerIndex < trackerList.size; trackerIndex++) {
         if (trackerList[trackerIndex].id == trackerId) {
             break;
