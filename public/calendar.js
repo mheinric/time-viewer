@@ -90,14 +90,6 @@ function moveCalendarBy(nbDays) {
     verifDateChanged();
 }
 
-document.getElementById("prevWeek").onclick = function() {
-    moveCalendarBy(-7);
-}
-
-document.getElementById("nextWeek").onclick = function() {
-    moveCalendarBy(7);
-}
-
 // Initializes the calendar view
 function initCalendar() {
     //We init the field with the monday of the current week
