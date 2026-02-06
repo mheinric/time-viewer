@@ -63,7 +63,7 @@ function buildToolBar() {
 
     const thisWeekButton = document.createElement("button");
     thisWeekButton.textContent = "This Week";
-    thisWeekButton.onclick = function() { 
+    thisWeekButton.onclick = () => { 
         hideCalendar();
         const startDate = new Date();
         startDate.setHours(0,0,0,0);
@@ -77,7 +77,7 @@ function buildToolBar() {
 
     const allButton = document.createElement("button");
     allButton.textContent = "All";
-    allButton.onclick = function() { 
+    allButton.onclick = () => { 
         hideCalendar(); 
         updatePieChartRange(null, null);
         updatePieChart(); 
@@ -93,7 +93,7 @@ function buildToolBar() {
         const button = document.createElement("button"); 
         button.textContent = date.toLocaleString('default', { month: 'short', year: 'numeric' });
         //Note: callback inside function called immedately to capture the variable 'date'.
-        button.onclick = function() { 
+        button.onclick = () => { 
             hideCalendar();
             const start = new Date(date);
             const end = new Date(date);
@@ -107,7 +107,7 @@ function buildToolBar() {
 
     const calendarButton = document.createElement("button"); 
     calendarButton.textContent = "Verif";
-    calendarButton.onclick = function() { showCalendar(); };
+    calendarButton.onclick = () => { showCalendar(); };
     toolbar.appendChild(calendarButton);
 }
 
