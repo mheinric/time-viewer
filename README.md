@@ -3,10 +3,16 @@
 This is a small website for viewing time tracking data captured with the [Track&Graph](https://play.google.com/store/apps/details?id=com.samco.trackandgraph&hl=en&pli=1) application.
 
 It displays the data recorded in Track&Graph as a pie chart:
-![Main view of the application](doc/piechart.png)
+
+<p align="center">
+    <img src="doc/piechart.png" title="Main view of the application" width="650">
+</p>
 
 There is also a Calendar view for verifying that there is no error in the data:
-![View data in calendar form](doc/calendar.png)
+
+<p align="center">
+    <img src="doc/calendar.png" title="View data in calendar form" width="650">
+</p>
 
 You can get an idea of what the website looks like [here](https://marcheinrich.fr/testTimeViewer).
 
