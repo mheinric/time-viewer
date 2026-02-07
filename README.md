@@ -33,9 +33,9 @@ Clone the repository, then copy the config-template.yaml to config.yaml, and edi
 Finally run
 
 ```bash
-node main.js
+npm install # Install dependencies
+node main.js # Start the website
 ```
-to start the website.
 
 ## Limitations
 
