@@ -184,13 +184,24 @@ body {
 #prevWeek, 
 #nextWeek {
 	position: absolute;
-	font-size: 300%
+	font-size: 300%;
+    background-color: #444;
+    border-radius: 0.5em;
+    border: none;
+    width: 1.25em;
+    color: white;
+    cursor: pointer;
+}
+
+#prevWeek:hover, 
+#nextWeek:hover {
+    background-color: #555;
 }
 
 #prevWeek {
-	right: 120%;
+	right: calc(100% + 0.25em);
 }
 
 #nextWeek {
-	left: 120%;
+	left: calc(100% + 0.25em);
 }
