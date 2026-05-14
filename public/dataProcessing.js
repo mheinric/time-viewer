@@ -24,15 +24,15 @@ function listTrackers() {
 }
 
 function getTracker(trackerId) {
-    return parseResult(db.exec(`SELECT * FROM features_table WHERE id = ${trackerId};`))[0];
+    return parseResult(db.exec(`SELECT features_table.*, group_items_table.group_id FROM features_table INNER JOIN group_items_table ON features_table.id = group_items_table.child_id WHERE features_table.id = ${trackerId} AND type = 'TRACKER';`))[0];
 }
 
 function listTrackersFor(group) {
-    return parseResult(db.exec(`SELECT * FROM features_table WHERE group_id = ${group};`));
+    return parseResult(db.exec(`SELECT features_table.* FROM features_table INNER JOIN group_items_table ON features_table.id = group_items_table.child_id WHERE group_items_table.group_id = ${group} AND type = 'TRACKER';`));
 }
 
 function listGroups(parentGroup) {
-    return parseResult(db.exec(`SELECT * FROM groups_table WHERE parent_group_id = ${parentGroup};`));
+    return parseResult(db.exec(`SELECT groups_table.* FROM groups_table INNER JOIN group_items_table ON groups_table.id = group_items_table.child_id WHERE group_items_table.group_id = ${parentGroup};`));
 }
 
 function getGroup(groupId) {
@@ -104,7 +104,8 @@ function trackerColor(trackerId) {
     const group = getGroup(tracker.group_id);
     const groupColor = builtinColors[group.color_index];
     const trackerList = listTrackersFor(tracker.group_id);
-    for (var trackerIndex = 0; trackerIndex < trackerList.size; trackerIndex++) {
+    let trackerIndex = 0;
+    for (trackerIndex = 0; trackerIndex < trackerList.size; trackerIndex++) {
         if (trackerList[trackerIndex].id == trackerId) {
             break;
         }
