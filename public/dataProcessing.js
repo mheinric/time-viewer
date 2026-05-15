@@ -32,7 +32,7 @@ function listTrackersFor(group) {
 }
 
 function listGroups(parentGroup) {
-    return parseResult(db.exec(`SELECT groups_table.* FROM groups_table INNER JOIN group_items_table ON groups_table.id = group_items_table.child_id WHERE group_items_table.group_id = ${parentGroup};`));
+    return parseResult(db.exec(`SELECT groups_table.* FROM groups_table INNER JOIN group_items_table ON groups_table.id = group_items_table.child_id WHERE group_items_table.group_id = ${parentGroup} ORDER BY group_items_table.display_index ASC;`));
 }
 
 function getGroup(groupId) {
