@@ -105,7 +105,7 @@ function trackerColor(trackerId) {
     const groupColor = builtinColors[group.color_index];
     const trackerList = listTrackersFor(tracker.group_id);
     let trackerIndex = 0;
-    for (trackerIndex = 0; trackerIndex < trackerList.size; trackerIndex++) {
+    for (trackerIndex = 0; trackerIndex < trackerList.length; trackerIndex++) {
         if (trackerList[trackerIndex].id == trackerId) {
             break;
         }
