@@ -102,7 +102,7 @@ const builtinColors = [
 function trackerColor(trackerId) {
     const tracker = getTracker(trackerId); 
     const group = getGroup(tracker.group_id);
-    const groupColor = builtinColors[group.color_index];
+    const groupColor = Highcharts.color(builtinColors[group.color_index]);
     const trackerList = listTrackersFor(tracker.group_id);
     let trackerIndex = 0;
     for (trackerIndex = 0; trackerIndex < trackerList.length; trackerIndex++) {
@@ -110,8 +110,17 @@ function trackerColor(trackerId) {
             break;
         }
     }
+    let groupColorRBG = groupColor["rgba"];
+    let isLightColor = (groupColorRBG[0] +  groupColorRBG[1] + groupColorRBG[2]) / (3 * 255) > 0.75;
 
-    return Highcharts.color(groupColor).brighten(-0.1 + (trackerIndex * 0.3 / trackerList.length)).get()
+    if (isLightColor)
+    {
+        return groupColor.brighten(-0.1 + (trackerIndex * 0.1 / trackerList.length)).get();
+    }
+    else
+    {
+        return groupColor.brighten(-0.1 + (trackerIndex * 0.3 / trackerList.length)).get();
+    }
 }
 
 async function loadDB() {
