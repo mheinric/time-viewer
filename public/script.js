@@ -1,3 +1,13 @@
+// Callback called when the user modifies the date range using the selectors
+function rangeChanged() {
+	const startDate = new Date(startDateInput.valueAsDate);
+	const endDate = new Date(endDateInput.valueAsDate);
+	startDate.setHours(0,0,0,0);
+	endDate.setHours(0,0,0,0); 
+	endDate.setDate(endDate.getDate() + 1);
+	plotPieAll(startDate, endDate);
+}
+
 // Ask the user to select the .db file to upload it, and send a request with 
 // the selected file
 function uploadDBFile() {
