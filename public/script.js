@@ -2,10 +2,7 @@
 function rangeChanged() {
 	const startDate = new Date(startDateInput.valueAsDate);
 	const endDate = new Date(endDateInput.valueAsDate);
-	startDate.setHours(0,0,0,0);
-	endDate.setHours(0,0,0,0); 
-	endDate.setDate(endDate.getDate() + 1);
-	plotPieAll(startDate, endDate);
+    updatePieChartRange(startDate, endDate);
 }
 
 // Ask the user to select the .db file to upload it, and send a request with 
@@ -81,7 +78,6 @@ function buildToolBar() {
         const dayDiff = (startDate.getDay() || 7) - 1;
         startDate.setHours(-24 * dayDiff);
         updatePieChartRange(startDate, null);
-        updatePieChart(); 
     };
     toolbar.appendChild(thisWeekButton);
 
@@ -90,7 +86,6 @@ function buildToolBar() {
     allButton.onclick = () => { 
         hideCalendar(); 
         updatePieChartRange(null, null);
-        updatePieChart(); 
     };
     toolbar.appendChild(allButton);
     
@@ -110,7 +105,6 @@ function buildToolBar() {
             end.setMonth(start.getMonth() + 1);
             end.setSeconds(end.getSeconds() - 1);
             updatePieChartRange(date, end);
-            updatePieChart(); 
         };
         toolbar.appendChild(button);
     }
