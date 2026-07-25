@@ -2,6 +2,7 @@
 <html>
 <head>
 	<meta charset="utf8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<script src='dist/sql-wasm.js'></script>
 	<script src='dist/qrcodegen.js'></script>
 	<script src="https://code.highcharts.com/highcharts.js"></script>
@@ -20,8 +21,7 @@
 	<button class="uploadButton" onclick="uploadDBFile()"><img src="upload.svg" width="200" height="200"></button>
 </div>
 <!-- Left toolbar -->
-<div id="toolbar" class="toolbar">
-</div>
+<div id="toolbar" class="toolbar"></div>
 <!-- Bar on the top with additional buttons -->
 <div id="topbar" class="topbar" >
 	<button onclick="uploadDBFile()"><img src="upload.svg" width="25" height="25"></button>
@@ -38,13 +38,13 @@
 		<table>
 			<thead>
 				<tr>
-					<th><button id="prevWeek" onclick="moveCalendarBy(-7)">&lt;</button><span>Monday</span></th>
-					<th><span>Tuesday</span></th>
-					<th><span>Wednesday</span></th>
-					<th><span>Thursday</span></th>
-					<th><span>Friday</span></th>
-					<th><span>Saturday</span></th>
-					<th><span>Sunday</span><button id="nextWeek" onclick="moveCalendarBy(7)">&gt;</button></th>
+					<th><button id="prevWeek" onclick="moveCalendarBy(-7)">&lt;</button><span>Mon.</span></th>
+					<th><span>Tue.</span></th>
+					<th><span>Wed.</span></th>
+					<th><span>Thu.</span></th>
+					<th><span>Fri.</span></th>
+					<th><span>Sat.</span></th>
+					<th><span>Sun.</span><button id="nextWeek" onclick="moveCalendarBy(7)">&gt;</button></th>
 				</tr>
 				<tr>
 					<th>01/12</th>

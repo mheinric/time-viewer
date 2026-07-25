@@ -47,7 +47,9 @@ function plotPieChart(start = null, end = null) {
         dataLabels: {
             color: '#000',
             distance: '-25%', 
-            size: '5pt',
+            style: {
+                fontSize: '5pt' 
+            }
         }
     }; 
     const trackersSerie = {
@@ -59,6 +61,9 @@ function plotPieChart(start = null, end = null) {
         data: [],
         dataLabels: {
             distance: '25%',
+            style: {
+                fontSize: '3pt' 
+            }
         }
     };
     //Populate the two objects by retrieving the data matching the input range from the database
@@ -103,6 +108,15 @@ function plotPieChart(start = null, end = null) {
     //Call the HighCharts function to actually render the pie chart.
     Highcharts.chart('container', {
         chart: {
+            // Disable chart-level pinch zoom
+            zooming: {
+                pinchType: undefined, // or false
+                singleTouch: false
+            },
+            // Disable internal panning
+            panning: {
+                enabled: false
+            },
             type: 'pie',
             custom: {
             },
@@ -138,7 +152,11 @@ function plotPieChart(start = null, end = null) {
             }
         },
         title: { text: null },
-        tooltip: { pointFormat: '<b>{point.y:.1f}h ({point.percentage:.0f}%)</b>' },
+        tooltip: { 
+            pointFormat: '<b>{point.y:.1f}h ({point.percentage:.0f}%)</b>',
+            // Prevent tooltips from hijacking single-finger scroll gestures
+            followTouchMove: false
+        },
         legend: { enabled: false },
         plotOptions: {
             pie: {

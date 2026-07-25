@@ -78,7 +78,7 @@ function verifDateChanged() {
         const month = String(dayDate.getMonth() + 1).padStart(2, '0'); 
         const day = String(dayDate.getDate()).padStart(2, '0'); 
         document.querySelector(`#calendarContainer thead tr:nth-child(2) th:nth-child(${i+1})`).textContent = `${day}/${month}`;
-        const dayName = dayDate.toLocaleDateString("en-GB", { weekday : "long" });
+        const dayName = dayDate.toLocaleDateString("en-GB", { weekday : "short" });
         document.querySelector(`#calendarContainer thead tr:nth-child(1) th:nth-child(${i+1}) span`).textContent = dayName;
     }
 }

@@ -92,7 +92,7 @@ function buildToolBar() {
     let nbInserted = 0;
     for (let date of listMonths().toReversed()) {
         nbInserted++; 
-        if (nbInserted >= 5) {
+        if (nbInserted >= 4) {
             break;
         }
         const button = document.createElement("button"); 
