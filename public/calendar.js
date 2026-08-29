@@ -1,21 +1,20 @@
 function addEvent(event, index) {
-    const eventDate = new Date(0); 
+    const eventDate = new Date(0);
     eventDate.setUTCMilliseconds(event.epoch_milli);
     const hours = eventDate.getHours(); //Note should be in local TZ.
     const min = eventDate.getMinutes();
     const sec = eventDate.getSeconds();
     const milli = eventDate.getMilliseconds();
     const eventLengthMilli = event.value * 1000;
-    //The calendar view displays events from 6 am to 10 pm.
-    const div = document.createElement("div"); 
-    div.classList.add("event"); 
+    const div = document.createElement("div");
+    div.classList.add("event");
 
-    const startHour = 0; 
+    const startHour = 0;
     const endHour = 24;
 
     const totalHeightMilli = (endHour - startHour) * 60 * 60 * 1000;
     let eventLengthPercent = eventLengthMilli / totalHeightMilli;
-    let eventOffsetPercent = ((((hours - startHour) * 60 + min) * 60 + sec) * 1000 + milli) / totalHeightMilli; 
+    let eventOffsetPercent = ((((hours - startHour) * 60 + min) * 60 + sec) * 1000 + milli) / totalHeightMilli;
     if (eventLengthPercent < 0.01) {
         eventLengthPercent = 0.01;
     }
@@ -35,9 +34,9 @@ function addEvent(event, index) {
     startDate.setMilliseconds(startDate.getMilliseconds() - eventLengthMilli);
 
     //Add a tooltip to the event
-    const anchor = document.createElement("div"); 
+    const anchor = document.createElement("div");
     anchor.classList.add("tooltipAnchor");
-    const tooltip = document.createElement("div"); 
+    const tooltip = document.createElement("div");
     tooltip.classList.add("tooltipText");
     tooltip.innerHTML = `<strong>${tracker.name}</strong><br>Start: ${startDate.toLocaleTimeString()}<br>End: ${eventDate.toLocaleTimeString()}`;
     tooltip.style.borderColor = `color-mix(in srgb, ${eventColor}, black 20%)`;
@@ -51,8 +50,7 @@ function addEvent(event, index) {
 
 function verifDateChanged() {
     //Clear all events from table.
-    for (let eventDiv of document.querySelectorAll("#calendarContainer tbody .event"))
-    {
+    for (let eventDiv of document.querySelectorAll("#calendarContainer tbody .event")) {
         eventDiv.remove();
     }
 
@@ -64,28 +62,26 @@ function verifDateChanged() {
     //Select all events that overlap this
     const events = getValuesInRange(initDate, endDate);
     let index = 0;
-    for (let event of events)
-    {
+    for (let event of events) {
         addEvent(event, index);
         index += 1;
     }
 
     //Update the dates in the table headers.
-    for (let i = 0; i < 7; i++)
-    {
-        const dayDate = new Date(initDate); 
+    for (let i = 0; i < 7; i++) {
+        const dayDate = new Date(initDate);
         dayDate.setDate(dayDate.getDate() + i);
-        const month = String(dayDate.getMonth() + 1).padStart(2, '0'); 
-        const day = String(dayDate.getDate()).padStart(2, '0'); 
-        document.querySelector(`#calendarContainer thead tr:nth-child(2) th:nth-child(${i+1})`).textContent = `${day}/${month}`;
-        const dayName = dayDate.toLocaleDateString("en-GB", { weekday : "short" });
-        document.querySelector(`#calendarContainer thead tr:nth-child(1) th:nth-child(${i+1}) span`).textContent = dayName;
+        const month = String(dayDate.getMonth() + 1).padStart(2, '0');
+        const day = String(dayDate.getDate()).padStart(2, '0');
+        document.querySelector(`#calendarContainer thead tr:nth-child(2) th:nth-child(${i + 1})`).textContent = `${day}/${month}`;
+        const dayName = dayDate.toLocaleDateString("en-GB", { weekday: "short" });
+        document.querySelector(`#calendarContainer thead tr:nth-child(1) th:nth-child(${i + 1}) span`).textContent = dayName;
     }
 }
 
 function moveCalendarBy(nbDays) {
     const currDate = document.getElementById("verifDateStart").valueAsDate;
-    currDate.setDate(currDate.getDate() + nbDays); 
+    currDate.setDate(currDate.getDate() + nbDays);
     document.getElementById("verifDateStart").value = currDate.toISOString().substr(0, 10);
     verifDateChanged();
 }
@@ -96,6 +92,9 @@ function initCalendar() {
     let initDate = new Date();
     let dateOffset = initDate.getDay() == 0 ? 6 : (initDate.getDay() - 1); //Note: getDay() returns the day of the week as a number, with 0 = Sunday.
     initDate.setDate(initDate.getDate() - dateOffset);
-    document.getElementById("verifDateStart").value = initDate.toISOString().substring(0, 10);
+    document.getElementById("verifDateStart").value =
+        new Date(initDate.getTime() - initDate.getTimezoneOffset() * 60 * 1000)
+            .toISOString()
+            .substring(0, 10);
     verifDateChanged();
 }
